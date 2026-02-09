@@ -54,14 +54,14 @@
 http:
 
 ```
-https://gitee.com/ymymymymy/306_crawl.git
+https://github.com:chirsa/PoCZoo.git
 ```
 
 ssh:
 注意ssh需要把公钥传到gitee上
 
 ```
-git@gitee.com:ymymymymy/306_crawl.git
+git@github.com:chirsa/PoCZoo.git
 ```
 
 #### 2. 安装依赖
@@ -89,7 +89,7 @@ wpscan=wpscan
 
 平时开发和调试代码时，运行爬虫脚本`run.sh`即可，也可运行`run_all_mutithread`脚本。区别是前者把控制台输出重定向到了日志文件中方便查看。也可以在特定爬虫代码中运行和调试，但需要在代码中自己写类的调用，并填入相应参数，不推荐。
 
-注意：由于部分代码逻辑是把数据存贮到json文件中，再存入数据库，而运行脚本每次运行后都会把存放在json文件中的数据清空，防止数据丢失，==不要同时运行多个`run.sh`==。存储文件的路径为：`306_crawl/../306data`,即和`306_crawl`同级目录下的`306data`文件夹。
+注意：由于部分代码逻辑是把数据存贮到json文件中，再存入数据库，而运行脚本每次运行后都会把存放在json文件中的数据清空，防止数据丢失，==不要同时运行多个`run.sh`==。
 
 ```
 ./run.sh
@@ -99,80 +99,11 @@ wpscan=wpscan
 
 XXX_log.txt是控制台输出，XXX.log是爬虫日志，XXX.csv是爬虫的最终结果。如果爬虫失败，可以根据类名去爬虫日志和.txt中查看。
 
-### 数据处理脚本说明
 
-该文件夹存放数据处理脚本，主要是对爬虫爬取的数据进行格式换成，导入导出操作
-
-#### data_format_trans.py
-
-该脚本用于把目标数据库中的所有集合通过转换格式表`data_format.xlsx`把数据转换成探寻所给的数据格式。
-关键参数：
-
-* `old_collection = connect_mongodb('XXXX', header)`：XXXX替换成被转换的数据库名称
-
-* `data_path = f"{PRO_PATH}/refe_file/XXXX.xlsx"`：数据转换表的文件路径
-
-* `create_db_name = current_date.strftime('%Y%m%d')`: 转换后的数据库名称,设成了转换时候的日期
-
-* 运行后在reports文件夹下会生成一个`problem_dict_keys_counter.json`,统计了转换过程中有问题的字段，这些字段可能是因为格式转换表中写错了格式，例如：`containers*adp*0*title`写成了`containers*adp*title`，或者有错字。也可能是因为在对应集合中，这些字段只存在于一部分`document`
-  后续需要把这些关键参数放置在ini配置文件中，方便配置。此外还需修改`header`参数，在ini中配置该参数使得脚本可以指定需要转换的集合,而不是转换格式转换表中所有的集合。
-
-#### dataProce.py
-
-这个脚本是代码重构前爬虫脚本经常需要调用的一些函数，尽量少用里面的函数，如果有多个爬虫需要使用的函数，可以在`spider_base.py`实现。
-
-#### export_data.py
-
-该脚本用于把目标数据库中的所有集合导出到json文件中。
-关键参数：
-
-* `client = MongoClient('localhost', 27017)`：连接client
-
-* `target_databases = [name for name in database_names if name.startswith('20250319')]`: 根据条件筛选数据库，这里筛选日期为20250319的数据库
-
-* `export_dir =os.path.join(os.path.dirname(__file__), '..', '..', '..', 'exportdata')`: 存放的数据库位置，这里是存放在和`306_crawl`同级目录下的`exportdata`文件夹
-
-同理，后续需要把这些关键参数放置在ini配置文件中，方便配置。
-
-#### import_data.py
-
-该脚本用于把json文件中的数据导入到目标数据库中。
-关键参数：
-
-* `client = MongoClient('mongodb://localhost:27017/')`：连接client
-
-* `db = client['20250319'] `: 目标数据库名称，这里是20250319
-
-* `json_files_directory = "C:/Users/20759/Desktop/data/data`: 存放json文件的目录，脚本会把这个目录下所有的json文件导入到目标数据库中。
-  数据库中集合命名代码如下，请按需修改：
-
-```python
-# 获取集合名称（去掉文件扩展名）
-        collection_name = os.path.splitext(filename)[0]
-        # 去掉前缀20250314.
-        if collection_name.startswith("20250314."):
-            collection_name = collection_name[9:]
-        collection = db[collection_name]
-```
-
-同理，后续需要把这些关键参数放置在ini配置文件中，方便配置。
-
-#### match_cve_id.py
-
-根据对应的`XXX_cve_id`集合，在爬取的数据库中做匹配，把`cve_id`相匹配并且含有poc信息的文档导入到`XXX_poc`集合中。目前设定是这两个集合都在同一个数据库里，后续要分开放。该脚本还打印匹配到的cve_id次数和匹配到的唯一 CVE ID 数量。并把每个数据集的匹配的唯一`CVE ID`写入`{key}_matched_cves.json`中
-关键参数：
-
-* `cve_id_db = client['cve_id']`：存放`XXX_cve_id`和`XXX_poc`集合的数据库名称
-
-* `target_db = client['20250319']`: 被匹配的爬虫数据库名称
-
-* `{key}_matched_cves.json`: 存放每个数据集的匹配的唯一`CVE ID`的文件名
-
-同理，后续需要把这些关键参数放置在ini配置文件中，方便配置
 
 #### run_all_mutithread.py
 
-运行所有爬虫脚本，并使用多线程提高效率。一般调试的时候用，运行时候用`run.sh`脚本。每次爬虫完成后都会删除`DATA_PATH`文件夹防止占用存储，目前该路径是和`306_crawl`同级目录下的`306data`文件夹。
+运行所有爬虫脚本，并使用多线程提高效率。一般调试的时候用，运行时候用`run.sh`脚本。每次爬虫完成后都会删除`DATA_PATH`文件夹防止占用存储。
 该脚本关键参数都在ini配置文件中。
 `run_all.py`脚本是它的备份，代码稳定后可以删除。
 
